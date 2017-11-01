@@ -9,7 +9,8 @@ CheapStepper pitch(4, 5, 6, 7);
 
 joystick joy(joystickXPin, joystickYPin, 512, 512);
 
-void setup() {
+void setup()
+{
     rotation.setRpm(15);
     pitch.setRpm(15);
     rotation.moveToDegree(true, 0);
@@ -17,7 +18,8 @@ void setup() {
     Serial.begin(9600);
 }
 
-void loop() {
+void loop()
+{
     joy.update();
     Serial.print("Joy X: ");
     Serial.println(joy.x);
@@ -28,20 +30,25 @@ void loop() {
     delay(1);
 }
 
-void updateStepper(int position, CheapStepper sm) {
+void updateStepper(int position, CheapStepper sm)
+{
     int speed;
     bool clockWise;
-    if (position > 562) {
+    if (position > 562)
+    {
         speed = map(position, 562, 1023, 10, 22);
         clockWise = true;
-    } else if (position < 462) {
+    }
+    else if (position < 462)
+    {
         speed = map(position, 0, 462, 22, 10);
         clockWise = false;
-    } else {
+    }
+    else
+    {
         sm.stop();
     }
 
     sm.setRpm(speed);
     sm.step(clockWise);
 }
-

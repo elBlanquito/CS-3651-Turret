@@ -3,11 +3,13 @@
 
 #include "Arduino.h";
 
-class joystick {
+class joystick
+{
   public:
     joystick(byte analogXPin, byte analogYPin, int initialXVal, int initialYVal);
     void joystick::update(void);
     int x, y;
+
   private:
     static const int _size = 64;
     static const int _shift = 6;
@@ -22,6 +24,5 @@ class joystick {
     int _initialXVal;
     int _initialYVal;
 };
-
 
 #endif
