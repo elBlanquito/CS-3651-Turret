@@ -16,11 +16,7 @@ joystick::joystick(byte analogXPin, byte analogYPin, int initialXVal, int initia
     {
         _bufferX[i] = _initialXVal;
         _bufferXSum += _initialXVal;
-    }
-
-    for (int i = 0; i < _size; i++)
-    {
-        _bufferY[i] = _initialYVal;
+        _bufferY[i] = initialYVal;
         _bufferYSum += _initialYVal;
     }
 
