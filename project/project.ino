@@ -1,54 +1,65 @@
-#include <CheapStepper.h>
-#include "smoothJoystick.h";
+#include "BasicStepperDriver.h"
+#include "smoothJoystick.h"
 
-#define joystickXPin A0
-#define joystickYPin A1
+#define joystickXPin    A0
+#define joystickYPin    A1
+#define joystickEnable  2
+#define joystickXCenter 513
+#define joystickYCenter 500
+#define joystickXThresh 10
+#define joystickYThresh 20
 
-CheapStepper rotation(8, 9, 10, 11);
-CheapStepper pitch(4, 5, 6, 7);
+#define MotorSteps      400
+#define RPM             60
+#define MicroSteps      2
+#define MaxRPM          60
+#define Step            6
+#define rotationDirPin  9
+#define rotationStepPin 10
+#define pitchDirPin     4
+#define ptichStepPin    5
 
-joystick joy(joystickXPin, joystickYPin, 512, 512);
+#define laserEnable     7
+
+BasicStepperDriver rotation(MotorSteps, rotationDirPin, rotationStepPin);
+BasicStepperDriver pitch(MotorSteps, pitchDirPin, pitchStepPin);
+
+joystick joy(
+    joystickEnable, 
+    joystickXPin, 
+    joystickYPin, 
+    joystickXCenter, 
+    joystickYCenter
+);
 
 void setup()
 {
-    rotation.setRpm(15);
-    pitch.setRpm(15);
-    rotation.moveToDegree(true, 0);
-    pitch.moveToDegree(true, 0);
-    Serial.begin(9600);
+    rotation.begin(RPM, MicroSteps);
+    pinMode(laserEnable, OUTPUT);
+    digitalWrite(laserEnable, LOW);
+    Serial.begin(115200);
 }
 
 void loop()
 {
     joy.update();
-    Serial.print("Joy X: ");
-    Serial.println(joy.x);
-    Serial.print("Joy Y: ");
-    Serial.println(joy.y);
-    updateStepper(joy.x, rotation);
-    updateStepper(joy.y, pitch);
-    delay(1);
+//    Serial.println(joy.x);
+//    Serial.println(joy.y);
+    updateStepper(joy.x, joystickXThresh, rotation);
+    updateStepper(joy.y, joystickYThresh, pitch);
 }
 
-void updateStepper(int position, CheapStepper sm)
-{
-    int speed;
-    bool clockWise;
-    if (position > 562)
-    {
-        speed = map(position, 562, 1023, 10, 22);
-        clockWise = true;
+void updateStepper(int position, int thresh, BasicStepperDriver sm) {
+    int jsIn = map(position, 0, 1023, -512, 512);
+    if (abs(jsIn) < thresh) {
+        jsIn = 0;
     }
-    else if (position < 462)
-    {
-        speed = map(position, 0, 462, 22, 10);
-        clockWise = false;
+    int finalRPM = map(jsIn, -512, 512, -MaxRPM, MaxRPM);
+    sm.setRPM(abs(finalRPM));
+    } if (finalRPM < 0) { 
+      sm.move(-Step); 
+    } else if (finalRPM > 0) { 
+      sm.move(Step); 
     }
-    else
-    {
-        sm.stop();
-    }
-
-    sm.setRpm(speed);
-    sm.step(clockWise);
 }
+
