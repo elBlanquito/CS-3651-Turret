@@ -10,14 +10,14 @@
 #define joystickYThresh 20
 
 #define MotorSteps      400
-#define RPM             60
+#define RPM             50
 #define MicroSteps      2
-#define MaxRPM          60
-#define Step            6
-#define rotationDirPin  9
-#define rotationStepPin 10
+#define MaxRPM          50
+#define Step            4
+#define rotationDirPin  8
+#define rotationStepPin 9
 #define pitchDirPin     4
-#define ptichStepPin    5
+#define pitchStepPin    5
 
 #define laserEnable     7
 
@@ -37,7 +37,7 @@ void setup()
     rotation.begin(RPM, MicroSteps);
     pinMode(laserEnable, OUTPUT);
     digitalWrite(laserEnable, LOW);
-    Serial.begin(115200);
+//    Serial.begin(115200);
 }
 
 void loop()
@@ -55,11 +55,17 @@ void updateStepper(int position, int thresh, BasicStepperDriver sm) {
         jsIn = 0;
     }
     int finalRPM = map(jsIn, -512, 512, -MaxRPM, MaxRPM);
-    sm.setRPM(abs(finalRPM));
-    } if (finalRPM < 0) { 
-      sm.move(-Step); 
+    sm.setRPM(round5(abs(finalRPM)));
+    if (finalRPM < 0) { 
+      sm.move(-Step);
     } else if (finalRPM > 0) { 
       sm.move(Step); 
+    } else {
+      sm.stop();
     }
+}
+
+int round5(int n) {
+  return (n / 5 + (n % 5>2)) * 5;
 }
 
