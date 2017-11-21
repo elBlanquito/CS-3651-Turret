@@ -1,5 +1,8 @@
 #include "BasicStepperDriver.h"
+#include "SyncDriver.h"
 #include "smoothJoystick.h"
+#include <Button.h>
+#include <LiquidCrystal.h>
 
 #define joystickXPin    A0
 #define joystickYPin    A1
@@ -13,40 +16,81 @@
 #define RPM             50
 #define MicroSteps      2
 #define MaxRPM          50
-#define Step            4
-#define rotationDirPin  8
-#define rotationStepPin 9
-#define pitchDirPin     4
-#define pitchStepPin    5
+#define Step            2
+#define pitchDirPin     8
+#define pitchStepPin    9
+#define rotationDirPin  6
+#define rotationStepPin 7
+
+#define rs              7
+#define en              6
+#define d4              5
+#define d5              4
+#define d6              3
+#define d7              2
 
 #define laserEnable     7
+#define pushButton      10
 
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 BasicStepperDriver rotation(MotorSteps, rotationDirPin, rotationStepPin);
 BasicStepperDriver pitch(MotorSteps, pitchDirPin, pitchStepPin);
+Button btn(pushButton, false, false, 20);
 
 joystick joy(
-    joystickEnable, 
-    joystickXPin, 
-    joystickYPin, 
-    joystickXCenter, 
+    joystickEnable,
+    joystickXPin,
+    joystickYPin,
+    joystickXCenter,
     joystickYCenter
 );
 
-void setup()
-{
+char buf[20];
+int autoX = 0;
+int autoY = 0;
+bool manual = true;
+
+void setup() {
+    lcd.begin(16, 2);
+    lcd.noCursor();
     rotation.begin(RPM, MicroSteps);
+    pitch.begin(RPM, MicroSteps);
     pinMode(laserEnable, OUTPUT);
     digitalWrite(laserEnable, LOW);
-//    Serial.begin(115200);
+    Serial.begin(115200);
 }
 
-void loop()
-{
+void loop() {
     joy.update();
-//    Serial.println(joy.x);
-//    Serial.println(joy.y);
-    updateStepper(joy.x, joystickXThresh, rotation);
-    updateStepper(joy.y, joystickYThresh, pitch);
+    updateFromSerial();
+    if (manual) {
+        updateStepper(joy.x, joystickXThresh, rotation);
+        updateStepper(joy.y, joystickYThresh, pitch);   
+    } else {
+        updateStepper(autoX, joystickXThresh, rotation);
+        updateStepper(autoY, joystickYThresh, pitch); 
+    }
+    if (btn.pressedFor(3000)) {
+        Serial.println("Button has been pressed for 3 secs");
+    }
+}
+
+void updateFromSerial() {
+    for (int i = 0; Serial.available() > 0; i++) {
+        buf[i] = (char)Serial.read();
+    }
+    sscanf(buf, "%d,%d", &autoX, &autoY);
+    memset(&buf, 0, 20);
+    String xStr = "X: ";
+    xStr.concat(autoX);
+    xStr.concat("   ");
+    String yStr = "Y: ";
+    yStr.concat(autoY);
+    yStr.concat("   ");
+    lcd.setCursor(0, 0);
+    lcd.print(xStr);
+    lcd.setCursor(0, 1);
+    lcd.print(yStr);
 }
 
 void updateStepper(int position, int thresh, BasicStepperDriver sm) {
@@ -55,7 +99,8 @@ void updateStepper(int position, int thresh, BasicStepperDriver sm) {
         jsIn = 0;
     }
     int finalRPM = map(jsIn, -512, 512, -MaxRPM, MaxRPM);
-    sm.setRPM(round5(abs(finalRPM)));
+    sm.setRPM(abs(finalRPM));
+    delay(1);
     if (finalRPM < 0) { 
       sm.move(-Step);
     } else if (finalRPM > 0) { 
@@ -63,9 +108,5 @@ void updateStepper(int position, int thresh, BasicStepperDriver sm) {
     } else {
       sm.stop();
     }
-}
-
-int round5(int n) {
-  return (n / 5 + (n % 5>2)) * 5;
 }
 

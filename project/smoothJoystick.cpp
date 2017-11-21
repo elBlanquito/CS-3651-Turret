@@ -29,6 +29,7 @@ joystick::joystick(
 
 void joystick::update(void)
 {
+    for (int i = 0; i < 8; i++) analogRead(_analogXPin);
     int readAnalogXVal = analogRead(_analogXPin);
 
     _bufferXSum = _bufferXSum - _bufferX[_bufferIndex];
@@ -37,6 +38,7 @@ void joystick::update(void)
 
     x = _bufferXSum >> _shift;
 
+    for (int i = 0; i < 8; i++) analogRead(_analogYPin);
     int readAnalogYVal = analogRead(_analogYPin);
 
     _bufferYSum = _bufferYSum - _bufferY[_bufferIndex];
@@ -47,3 +49,4 @@ void joystick::update(void)
 
     _bufferIndex = (_bufferIndex + 1) % _size;
 }
+
