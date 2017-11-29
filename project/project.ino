@@ -27,6 +27,8 @@
 #define pushButton      10
 #define fireButton      13
 
+#define buffSize        20
+
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 AccelStepper rotation(1, rotationStepPin, rotationDirPin);
 AccelStepper pitch(1, pitchStepPin, pitchDirPin);
@@ -39,11 +41,12 @@ joystick joy(
     joystickYCenter
 );
 
-char buf[20];
+char buf[buffSize];
 int autoX = 0;
 int autoY = 0;
 bool manual = true;
 bool longPress = false;
+bool rpiCom = false;
 
 void setup() {
     lcd.begin(16, 2);
@@ -60,10 +63,10 @@ void loop() {
     doButtonActions();
     if (manual) {
         updateStepper(joy.x, joystickXThresh, rotation);
-        updateStepper(joy.y, joystickYThresh, pitch);   
-    } else {
-//        updateStepper(autoX, joystickXThresh, rotation);
-//        updateStepper(autoY, joystickYThresh, pitch); 
+        updateStepper(joy.y, joystickYThresh, pitch);
+    } else if (!manual && autoX != 0 && autoY !=0) {
+       updateStepper(autoX, joystickXThresh, rotation);
+       updateStepper(autoY, joystickYThresh, pitch);
     }
 }
 
@@ -111,11 +114,11 @@ void doButtonActions() {
 }
 
 void updateFromSerial() {
-    for (int i = 0; Serial.available() > 0; i++) {
+    for (int i = 0; Serial.available() > 0 && i < buffSize; i++) {
         buf[i] = (char)Serial.read();
     }
     sscanf(buf, "%d,%d", &autoX, &autoY);
-    memset(&buf, 0, 20);
+    memset(&buf, 0, buffSize);
     String xStr = "X: ";
     xStr.concat(autoX);
     xStr.concat("   ");
@@ -130,10 +133,10 @@ void updateStepper(int position, int thresh, AccelStepper sm) {
     if (abs(jsIn) < thresh) {
         jsIn = 0;
     }
-    if (jsIn < 0 && sm.distanceToGo() == 0) { 
+    if (jsIn < 0 && sm.distanceToGo() == 0) {
       sm.move(-Step);
-    } else if (jsIn > 0 && sm.distanceToGo() == 0) { 
-      sm.move(Step); 
+    } else if (jsIn > 0 && sm.distanceToGo() == 0) {
+      sm.move(Step);
     } else {
       sm.stop();
     }
