@@ -6,7 +6,6 @@
 class joystick {
     public:
         joystick(
-            byte enablePin, 
             byte analogXPin, 
             byte analogYPin, 
             int initialXVal, 

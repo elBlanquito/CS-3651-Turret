@@ -5,7 +5,6 @@
 
 #define joystickXPin    A0
 #define joystickYPin    A1
-#define joystickEnable  2
 #define joystickXCenter 513
 #define joystickYCenter 500
 #define joystickXThresh 10
@@ -25,8 +24,8 @@
 #define d6              3
 #define d7              2
 
-#define laserEnable     7
 #define pushButton      10
+#define fireButton      13
 
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 AccelStepper rotation(1, rotationStepPin, rotationDirPin);
@@ -34,7 +33,6 @@ AccelStepper pitch(1, pitchStepPin, pitchDirPin);
 Button btn(pushButton, false, false, 20);
 
 joystick joy(
-    joystickEnable,
     joystickXPin,
     joystickYPin,
     joystickXCenter,
@@ -52,14 +50,14 @@ void setup() {
     lcd.noCursor();
     rotation.setMaxSpeed(RPM);
     pitch.setMaxSpeed(RPM);
-    pinMode(laserEnable, OUTPUT);
-    digitalWrite(laserEnable, LOW);
+    pinMode(fireButton, OUTPUT);
+    digitalWrite(fireButton, LOW);
     Serial.begin(115200);
 }
 
 void loop() {
     joy.update();
-    updateScreen();
+    doButtonActions();
     if (manual) {
         updateStepper(joy.x, joystickXThresh, rotation);
         updateStepper(joy.y, joystickYThresh, pitch);   
@@ -69,24 +67,18 @@ void loop() {
     }
 }
 
-void updateScreen() {
+void doButtonActions() {
     btn.read();
     if (btn.pressedFor(3000) && !longPress) {
         lcd.clear();
         if (manual) {
             String lcdStr1 = "Release for";
             String lcdStr2 = "Auto Mode";
-            lcd.setCursor(0, 0);
-            lcd.print(lcdStr1);
-            lcd.setCursor(0, 1);
-            lcd.print(lcdStr2);
+            printToLCD(lcdStr1, lcdStr2);
         } else {
             String lcdStr1 = "Release for";
             String lcdStr2 = "Manual Mode";
-            lcd.setCursor(0, 0);
-            lcd.print(lcdStr1);
-            lcd.setCursor(0, 1);
-            lcd.print(lcdStr2);
+            printToLCD(lcdStr1, lcdStr2);
         }
         longPress = true;
     }
@@ -97,16 +89,23 @@ void updateScreen() {
             String lcdStr = "Automatic Mode";
             lcd.setCursor(0, 0);
             lcd.print(lcdStr);
+            lcd.setCursor(0, 0);
             delay(5000);
         }
         longPress = false;
         lcd.clear();
+    } else if (btn.wasReleased() && !longPress && manual) {
+        digitalWrite(fireButton, HIGH);
+        delay(10);
+        digitalWrite(fireButton, LOW);
     }
     if (manual && !longPress) {
-        String lcdStr = "Manual Mode";
+        String lcdStr = "Manual Mode    ";
         lcd.setCursor(0, 0);
         lcd.print(lcdStr);
-    } else if (!manual && !longPress) {
+        lcd.setCursor(0, 0);
+    }
+    if (!manual && !longPress) {
         updateFromSerial();
     }
 }
@@ -123,10 +122,7 @@ void updateFromSerial() {
     String yStr = "Y: ";
     yStr.concat(autoY);
     yStr.concat("   ");
-    lcd.setCursor(0, 0);
-    lcd.print(xStr);
-    lcd.setCursor(0, 1);
-    lcd.print(yStr);
+    printToLCD(xStr, yStr);
 }
 
 void updateStepper(int position, int thresh, AccelStepper sm) {
@@ -142,5 +138,12 @@ void updateStepper(int position, int thresh, AccelStepper sm) {
       sm.stop();
     }
     sm.runToPosition();
+}
+
+void printToLCD(String first, String second) {
+    lcd.setCursor(0, 0);
+    lcd.print(first);
+    lcd.setCursor(0, 1);
+    lcd.print(second);
 }
 
