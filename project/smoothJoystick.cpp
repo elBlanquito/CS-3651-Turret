@@ -1,20 +1,17 @@
 #include "Arduino.h"
 #include "smoothJoystick.h"
 
-joystick::joystick(
-    byte enablePin, 
+joystick::joystick( 
     byte analogXPin, 
     byte analogYPin, int initialXVal, int initialYVal) {
 
     _analogXPin = analogXPin;
     _analogYPin = analogYPin;
-    _enablePin = enablePin;
     _initialXVal = initialXVal;
     _initialYVal = initialYVal;
 
     pinMode(_analogXPin, INPUT);
     pinMode(_analogYPin, INPUT);
-    pinMode(_enablePin, OUTPUT);
     digitalWrite(_enablePin, HIGH);
 
     for (int i = 0; i < _size; i++) {
