@@ -3,6 +3,7 @@
 #include <LiquidCrystal.h>
 #include <AccelStepper.h>
 
+// Joystick
 #define joystickXPin    A0
 #define joystickYPin    A1
 #define joystickXCenter 513
@@ -10,6 +11,7 @@
 #define joystickXThresh 10
 #define joystickYThresh 20
 
+// Stepper Motors
 #define RPM             1000
 #define Step            1
 #define pitchDirPin     8
@@ -17,6 +19,7 @@
 #define rotationDirPin  6
 #define rotationStepPin 7
 
+// LCD Screen
 #define rs              12
 #define en              11
 #define d4              5
@@ -24,10 +27,13 @@
 #define d6              3
 #define d7              2
 
+// Button & Trigger Relay
 #define pushButton      10
-#define fireButton      13
+#define triggerRelay    13
 
+// Other
 #define buffSize        20
+#define triggerDelay    10
 
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 AccelStepper rotation(1, rotationStepPin, rotationDirPin);
@@ -42,8 +48,8 @@ joystick joy(
 );
 
 char buf[buffSize];
-int autoX = 0;
-int autoY = 0;
+int autoX = joystickXCenter;
+int autoY = joystickYCenter;
 bool manual = true;
 bool longPress = false;
 bool rpiCom = false;
@@ -53,18 +59,20 @@ void setup() {
     lcd.noCursor();
     rotation.setMaxSpeed(RPM);
     pitch.setMaxSpeed(RPM);
-    pinMode(fireButton, OUTPUT);
-    digitalWrite(fireButton, LOW);
+    pinMode(triggerRelay, OUTPUT);
+    digitalWrite(triggerRelay, LOW);
     Serial.begin(115200);
+    Serial.println("manual");
+    Serial.flush();
 }
 
 void loop() {
     joy.update();
     doButtonActions();
     if (manual) {
-        updateStepper(joy.x, joystickXThresh, rotation);
-        updateStepper(joy.y, joystickYThresh, pitch);
-    } else if (!manual && autoX != 0 && autoY !=0) {
+       updateStepper(joy.x, joystickXThresh, rotation);
+       updateStepper(joy.y, joystickYThresh, pitch);
+    } else if (!manual && rpiCom) {
        updateStepper(autoX, joystickXThresh, rotation);
        updateStepper(autoY, joystickYThresh, pitch);
     }
@@ -73,59 +81,65 @@ void loop() {
 void doButtonActions() {
     btn.read();
     if (btn.pressedFor(3000) && !longPress) {
-        lcd.clear();
         if (manual) {
             String lcdStr1 = "Release for";
             String lcdStr2 = "Auto Mode";
-            printToLCD(lcdStr1, lcdStr2);
+            printToLCD2(lcdStr1, lcdStr2);
         } else {
             String lcdStr1 = "Release for";
             String lcdStr2 = "Manual Mode";
-            printToLCD(lcdStr1, lcdStr2);
+            autoX = joystickXCenter;
+            autoY = joystickYCenter;
+            printToLCD2(lcdStr1, lcdStr2);
         }
         longPress = true;
     }
     if (btn.wasReleased() && longPress) {
         manual = !manual;
-        lcd.clear();
         if (!manual) {
             String lcdStr = "Automatic Mode";
-            lcd.setCursor(0, 0);
-            lcd.print(lcdStr);
-            lcd.setCursor(0, 0);
+            printToLCD(lcdStr);
             delay(5000);
+            Serial.println("auto");
+            Serial.flush();
+        }
+        if (manual) {
+            Serial.println("manual");
+            Serial.flush();
         }
         longPress = false;
-        lcd.clear();
     } else if (btn.wasReleased() && !longPress && manual) {
-        digitalWrite(fireButton, HIGH);
-        delay(10);
-        digitalWrite(fireButton, LOW);
+        digitalWrite(triggerRelay, HIGH);
+        delay(triggerDelay);
+        digitalWrite(triggerRelay, LOW);
     }
     if (manual && !longPress) {
-        String lcdStr = "Manual Mode    ";
-        lcd.setCursor(0, 0);
-        lcd.print(lcdStr);
-        lcd.setCursor(0, 0);
-    }
-    if (!manual && !longPress) {
+        String lcdStr = "Manual Mode";
+        printToLCD(lcdStr);
+    } else if (!manual && !longPress) {
         updateFromSerial();
     }
 }
 
 void updateFromSerial() {
+    if (Serial.available() > 0) {
+        rpiCom = true;
+    }
     for (int i = 0; Serial.available() > 0 && i < buffSize; i++) {
         buf[i] = (char)Serial.read();
     }
-    sscanf(buf, "%d,%d", &autoX, &autoY);
-    memset(&buf, 0, buffSize);
-    String xStr = "X: ";
-    xStr.concat(autoX);
-    xStr.concat("   ");
-    String yStr = "Y: ";
-    yStr.concat(autoY);
-    yStr.concat("   ");
-    printToLCD(xStr, yStr);
+    if (rpiCom) {
+        sscanf(buf, "%d,%d", &autoX, &autoY);
+        memset(&buf, 0, buffSize);
+        String xStr = "X: ";
+        xStr.concat(autoX);
+        String yStr = "Y: ";
+        yStr.concat(autoY);
+        printToLCD2(xStr, yStr);
+    } else {
+        String lcdStr1 = "Waiting On RPI3";
+        printToLCD(lcdStr1);
+    }
 }
 
 void updateStepper(int position, int thresh, AccelStepper sm) {
@@ -143,7 +157,18 @@ void updateStepper(int position, int thresh, AccelStepper sm) {
     sm.runToPosition();
 }
 
-void printToLCD(String first, String second) {
+void printToLCD2(String first, String second) {
+    while (first.length() < 16) first.concat(" ");
+    while (second.length() < 16) second.concat(" ");
+    lcd.setCursor(0, 0);
+    lcd.print(first);
+    lcd.setCursor(0, 1);
+    lcd.print(second);
+}
+
+void printToLCD(String first) {
+    while (first.length() < 16) first.concat(" ");
+    String second = "                ";
     lcd.setCursor(0, 0);
     lcd.print(first);
     lcd.setCursor(0, 1);
