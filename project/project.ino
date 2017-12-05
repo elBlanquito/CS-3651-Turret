@@ -50,6 +50,7 @@ joystick joy(
 char buf[buffSize];
 int autoX = joystickXCenter;
 int autoY = joystickYCenter;
+int count = 0;
 bool manual = true;
 bool longPress = false;
 bool rpiCom = false;
@@ -108,10 +109,8 @@ void doButtonActions() {
             Serial.flush();
         }
         longPress = false;
-    } else if (btn.wasReleased() && !longPress && manual) {
-        digitalWrite(triggerRelay, HIGH);
-        delay(triggerDelay);
-        digitalWrite(triggerRelay, LOW);
+    } else if (btn.wasReleased() && !longPress) {
+        pullTrigger();
     }
     if (manual && !longPress) {
         String lcdStr = "Manual Mode";
@@ -119,6 +118,12 @@ void doButtonActions() {
     } else if (!manual && !longPress) {
         updateFromSerial();
     }
+}
+
+void pullTrigger() {
+    digitalWrite(triggerRelay, HIGH);
+    delay(triggerDelay);
+    digitalWrite(triggerRelay, LOW);
 }
 
 void updateFromSerial() {
